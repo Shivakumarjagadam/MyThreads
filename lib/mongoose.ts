@@ -18,9 +18,7 @@ export const connectToDB = async () => {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
-      connectTimeoutMS: 10000,
-      keepAlive: true,
-      keepAliveInitialDelay: 300000
+      connectTimeoutMS: 10000
     };
 
     await mongoose.connect(process.env.MONGODB_URL, opts);

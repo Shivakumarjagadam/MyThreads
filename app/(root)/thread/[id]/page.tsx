@@ -88,11 +88,11 @@ async function page({ params }: { params: { id?: string } }) {
       </div>
 
       <div className='mt-7'>
-      <Comment
-  threadId={params.id}
-  currentUserImg={userInfo.image}  //from database
-  currentUserId={userInfo._id.toString()} // Ensure it's a string
-  />
+        <Comment
+          threadId={params.id}
+          currentUserImg={userInfo.image}
+          currentUserId={userInfo._id}
+        />
       </div>
           {/* these are the  comments of the post */}
       <div className='mt-10'>
