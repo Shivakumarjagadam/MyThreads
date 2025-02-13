@@ -78,138 +78,150 @@ export async function fetchUser(userId: string) {
   try {
     connectToDB();
 
-    const user = await User.findOne({ id: userId });
+    const user = await User.findOne({ id: userId })
+      .select('_id id username name image bio onboarded')
+      .lean()
+      .maxTimeMS(10000);
 
     if (!user) return null;
 
-    // Convert Mongoose document to a plain object
-    const plainUser = JSON.parse(JSON.stringify(user));
-
-    return plainUser; // Now it's serializable
+    return JSON.parse(JSON.stringify(user));
   } catch (error: any) {
     throw new Error(`Failed to fetch user: ${error.message}`);
   }
 }
 
 
-export async function fetchUserPosts(userId:string){
- 
-
-  try{
+export async function fetchUserPosts(userId: string) {
+  try {
     connectToDB();
-    //finding user posts based on userid...
 
-    // TODO populate community...
+    // Find user and include their basic info along with threads
+    const user = await User.findOne({ id: userId })
+      .select('name username image threads')
+      .lean()
+      .populate({
+        path: 'threads',
+        model: Thread,
+        populate: [
+          {
+            path: 'children',
+            model: Thread,
+            populate: {
+              path: 'author',
+              model: User,
+              select: 'name image id'
+            }
+          },
+          {
+            path: 'author',
+            model: User,
+            select: 'name image id'
+          }
+        ]
+      })
+      .maxTimeMS(10000);
 
-    const threads = await User.findOne({id:userId })
-    .populate({
-      path:'threads',
-      model:Thread,
-      populate:{
-        path:'children', //also include comments and anythings from user...
-        model:Thread,
-        populate:{
-         path:'author',
-         model:User,
-         select:'name image id' 
-        }
-      }
-    })
+    if (!user) {
+      throw new Error("User not found");
+    }
 
-    return threads;
+    // Ensure the threads array exists
+    const userPosts = {
+      ...user,
+      threads: user.threads || []
+    };
+
+    return userPosts;
+  } catch (error: any) {
+    throw new Error(`Failed to fetch user posts: ${error.message}`);
   }
-  catch(error:any){
-    throw new Error(`failed to fetch user posts ${error.message}`);
-  }
-
 }
- 
 
 
 export async function fetchUsers({
-  userId,      //current user id where to not show this..
-  searchString="",
-  pageNumber=1,
-  pageSize=20,
-  sortBy="desc",
-}:{
-  userId:string,
-  searchString?:string,
-  pageNumber?:number,
-  pageSize?:number,
-  sortBy?:SortOrder,
-}){
-
-  try{
-
+  userId,
+  searchString = "",
+  pageNumber = 1,
+  pageSize = 20,
+  sortBy = "desc"
+}: {
+  userId: string;
+  searchString?: string;
+  pageNumber?: number;
+  pageSize?: number;
+  sortBy?: SortOrder;
+}) {
+  try {
     connectToDB();
-    const skipAmount = (pageNumber-1)* pageSize;
 
-    const regex = new RegExp(searchString,"i");
+    const skipAmount = (pageNumber - 1) * pageSize;
+    const regex = new RegExp(searchString, "i");
 
     const query: FilterQuery<typeof User> = {
-      id:{$ne :userId},
+      id: { $ne: userId }
+    };
 
+    if (searchString.trim() !== "") {
+      query.$or = [
+        { username: { $regex: regex } },
+        { name: { $regex: regex } }
+      ];
     }
-    if(searchString.trim()!==""){
-      query.$or=[
-        {username:{$regex:regex}},
-        {name:{$regex:regex}},
-      ]
-    }
-
-    const sortOptions = {createdAt:sortBy};
 
     const usersQuery = User.find(query)
-    .sort(sortOptions)
-    .skip(skipAmount)
-    .limit(pageSize);
+      .sort({ createdAt: sortBy })
+      .skip(skipAmount)
+      .limit(pageSize)
+      .lean()
+      .select('_id id name username image')
+      .maxTimeMS(10000);
 
-    const totalUsersCount =await User.countDocuments(query);
+    const totalUsersCount = await User.countDocuments(query)
+      .maxTimeMS(5000);
 
-    const users =await usersQuery.exec();
-
+    const users = await usersQuery.exec();
     const isNext = totalUsersCount > skipAmount + users.length;
 
-    return {users,isNext};
-
-  }
-  catch(error: any){
-    throw new Error(`failed to fetch users ${error.message}`);
+    return { users, isNext };
+  } catch (error: any) {
+    throw new Error(`Failed to fetch users: ${error.message}`);
   }
 }
 
 
-export async function getActivity(userId:string) {
-
-  try{
+export async function getActivity(userId: string) {
+  try {
     connectToDB();
-    //find all threads created by user.
-    const userThreads = await Thread.find({author: userId});
 
-    // collect all the chidlren thread replies(id's) of user threads
-    //colleccting all comments in a storing in an array...
-    const childThreadsIds = await  userThreads.reduce((acc, userThread)=>{
-        return acc.concat(userThread.children)
-    },[]);   //pass default  array(empty array)
+    // Find all threads created by user with timeout
+    const userThreads = await Thread.find({ author: userId })
+      .select('children')
+      .lean()
+      .maxTimeMS(10000);
 
+    // Collect all the children thread IDs
+    const childThreadsIds = userThreads.reduce((acc, userThread) => {
+      return acc.concat(userThread.children || []);
+    }, []);
 
-    // finding all comments(replies) of the child threads
+    // Find all replies with proper population and timeout
     const replies = await Thread.find({
-      _id:{$in: childThreadsIds},
-      author:{$ne: userId}
+      _id: { $in: childThreadsIds },
+      author: { $ne: userId }
     })
+    .select('text author parentId createdAt')
     .populate({
-      path:'author',
-      model:User,
-      select:'name image _id'
+      path: 'author',
+      model: User,
+      select: 'name image _id'
     })
+    .lean()
+    .maxTimeMS(10000);
 
     return replies;
-    
+  } catch (error: any) {
+    console.error("Error fetching activity:", error);
+    throw new Error(`Failed to fetch activity: ${error.message}`);
   }
-  catch(error:any){
-    throw new error(`failed to fetch the activity..${error.message}`);
-  }
-  
 }

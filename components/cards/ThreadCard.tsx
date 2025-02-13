@@ -45,6 +45,9 @@ const ThreadCard = ({
     minute: "2-digit",
   });
 
+  // Default avatar image if author image is empty
+  const defaultAvatar = "/assets/avatar.svg";
+
   return (
     <article
       className={`mt-3 flex flex-col w-full rounded-lg ${
@@ -56,8 +59,8 @@ const ThreadCard = ({
           <div className="flex flex-col items-center">
             <Link href={`/profile/${author.id}`} className="relative h-11 w-11">
               <Image
-                src={author.image}
-                alt="Profile Image"
+                src={author.image || defaultAvatar}
+                alt={`${author.name}'s profile picture`}
                 fill
                 className="cursor-pointer rounded-full"
               />
@@ -83,7 +86,7 @@ const ThreadCard = ({
               <div className="flex gap-3.5">
                 <Image
                   src="/assets/heart-gray.svg"
-                  alt="heart"
+                  alt="Like"
                   height={24}
                   width={24}
                   className="cursor-pointer object-contain"
@@ -92,7 +95,7 @@ const ThreadCard = ({
                 <Link href={`/thread/${id}`}>
                   <Image
                     src="/assets/reply.svg"
-                    alt="reply"
+                    alt="Reply"
                     height={24}
                     width={24}
                     className="cursor-pointer object-contain"
@@ -101,7 +104,7 @@ const ThreadCard = ({
 
                 <Image
                   src="/assets/repost.svg"
-                  alt="repost"
+                  alt="Repost"
                   height={24}
                   width={24}
                   className="cursor-pointer object-contain"
@@ -109,7 +112,7 @@ const ThreadCard = ({
 
                 <Image
                   src="/assets/share.svg"
-                  alt="share"
+                  alt="Share"
                   height={24}
                   width={24}
                   className="cursor-pointer object-contain"

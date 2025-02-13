@@ -39,37 +39,34 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   try {
     await connectToDB();
 
-    // Amount of posts to skip
+    // Calculate skip amount
     const skipAmount = (pageNumber - 1) * pageSize;
 
-    // Execute queries in parallel
+    // Create a lean query for better performance
+    const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
+      .sort({ createdAt: 'desc' })
+      .skip(skipAmount)
+      .limit(pageSize)
+      .select('text createdAt author children')
+      .lean()
+      .populate({
+        path: 'author',
+        model: User,
+        select: '_id id name image'
+      });
+
+    // Execute count query with timeout
+    const countQuery = Thread.countDocuments({ 
+      parentId: { $in: [null, undefined] } 
+    }).maxTimeMS(10000);
+
+    // Execute both queries in parallel
     const [posts, totalPostsCount] = await Promise.all([
-      Thread.find({ parentId: { $in: [null, undefined] } })
-        .sort({ createdAt: 'desc' })
-        .skip(skipAmount)
-        .limit(pageSize)
-        .select('text createdAt author children')
-        .lean()
-        .populate({
-          path: 'author',
-          model: User,
-          select: '_id id name image'
-        })
-        .populate({
-          path: 'children',
-          model: Thread,
-          select: 'author text createdAt',
-          perDocumentLimit: 3,
-          populate: {
-            path: 'author',
-            model: User,
-            select: '_id id name image'
-          }
-        }),
-      Thread.countDocuments({ parentId: { $in: [null, undefined] } })
+      postsQuery.exec(),
+      countQuery
     ]);
 
-    // Ensure each post has a children array
+    // Process the results
     const postsWithChildren = posts.map(post => ({
       ...post,
       children: post.children || []
@@ -88,9 +85,9 @@ export async function fetchThread(id: string) {
   try {
     await connectToDB();
 
-    const thread = await Thread.findById(id)
+    const threadQuery = Thread.findById(id)
       .select('text createdAt author children')
-      .lean()    
+      .lean()
       .populate({
         path: 'author',
         model: User,
@@ -106,13 +103,17 @@ export async function fetchThread(id: string) {
           model: User,
           select: '_id id name image'
         }
-      }) as any; // Temporary type assertion to resolve the issue
+      })
+      .maxTimeMS(10000);
+
+    const thread = await threadQuery.exec();
 
     if (!thread) throw new Error("Thread not found");
 
+    // Type assertion to handle the populated thread type
     const threadWithChildren = {
       ...thread,
-      children: Array.isArray(thread.children) ? thread.children : []
+      children: Array.isArray((thread as any).children) ? (thread as any).children : []
     };
 
     return threadWithChildren;
@@ -131,24 +132,28 @@ export async function addCommentToThread(
   try {
     await connectToDB();
 
-    // Find the original thread first
-    const originalThread = await Thread.findById(threadId);
-    if (!originalThread) {
-      throw new Error("Thread not found");
-    }
-
-    // Create the comment thread
-    const commentThread = await Thread.create({
+    // Create the comment thread first
+    const commentThread = new Thread({
       text: commentText,
       author: userId,
       parentId: threadId
     });
 
-    // Add comment to original thread's children
-    originalThread.children.push(commentThread._id);
-    await originalThread.save();
+    // Save the comment
+    const savedComment = await commentThread.save();
 
-    // Revalidate the path
+    // Update the original thread with the new comment
+    await Thread.findByIdAndUpdate(
+      threadId,
+      { 
+        $push: { children: savedComment._id } 
+      },
+      { 
+        new: true,
+        maxTimeMS: 10000 // Add timeout
+      }
+    );
+
     revalidatePath(path);
   } catch (err: any) {
     console.error("Error adding comment:", err);
