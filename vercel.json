@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "functions": {
     "app/api/*": {
       "maxDuration": 60
