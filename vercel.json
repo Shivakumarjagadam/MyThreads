@@ -1,0 +1,22 @@
+{
+  "functions": {
+    "app/api/*": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ],
+  "regions": ["bom1"],
+  "builds": [
+    { "src": "next.config.js", "use": "@vercel/next" }
+  ]
+} 

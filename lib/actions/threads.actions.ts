@@ -115,56 +115,6 @@ export async function fetchThread(id:string){
 }
 
 
-// export async function addCommentToThread(
-//   threadId:string,
-//   commentText:string,
-//   userId:string,
-//   path:string,
-// ) {
-//   connectToDB();
-
-//   try{
-//     //find the original thread by its id
-//     const originalThread = await Thread.findById(threadId);
-
-//     if(!originalThread){
-//       throw new Error('thread not found');
-//     }
-
-//      // Validate userId before converting it to ObjectId
-//     //  if (!mongoose.Types.ObjectId.isValid(userId)) {
-//     //   throw new Error("Invalid userId format: Must be a 24-character hex string.");
-//     // }
-
-//      // Convert userId to ObjectId
-//     //  const authorObjectId = new mongoose.Types.ObjectId(userId);
-
-//     //create a new Thread  with comment text
-//     const commentThread = new   Thread({
-//       text:commentText,
-//       author:userId,
-//       parentId: threadId,
-//     })
-
-//     //save the comment thread
-//     const savedCommentThread = await commentThread.save();
-
-//     //update the original thread to include new comment...
-//     originalThread.children.push(savedCommentThread._id);
-
-//     //save the original thread
-//     await originalThread.save();
-
-//     //to see the latest data...refreshing.(ISR)
-//     revalidatePath(path);
-
-//   }
-//   catch(error:any){
-//     throw new Error(`failed to add comment to thread ${error.message}`);
-//   }
-  
-// }
-
 
 //by gpt
 export async function addCommentToThread(

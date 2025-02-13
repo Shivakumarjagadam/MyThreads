@@ -1,24 +1,34 @@
 import mongoose from 'mongoose';
 
-let isConnected=false; //  true if connected
+let isConnected = false;
 
-export const connectToDB= async()=>{
+export const connectToDB = async () => {
+  mongoose.set('strictQuery', true);
 
-  mongoose.set('strictQuery',true);
+  if (!process.env.MONGODB_URL) {
+    throw new Error('MONGODB_URL not found');
+  }
 
-  if(!process.env.MONGODB_URL) return console.log('MONGODB_URL not connected');
+  if (isConnected) {
+    return;
+  }
 
-  if(isConnected) return console.log('already connected to MongoDB');
+  try {
+    const opts = {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 10000,
+      keepAlive: true,
+      keepAliveInitialDelay: 300000
+    };
 
-  try{
-    await mongoose.connect(process.env.MONGODB_URL);
+    await mongoose.connect(process.env.MONGODB_URL, opts);
     isConnected = true;
     console.log('Connected to MongoDB');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    isConnected = false;
+    throw error;
   }
-  catch(error){
-    console.error('Failed to connect to MongoDB',error);
-    
-
-  }
-
 }
