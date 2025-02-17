@@ -77,11 +77,11 @@ const ThreadCard = ({
                   {author.name}
                 </h4>
               </Link>
-              <p className="text-sm text-gray-400">{formattedDate}</p>
             </div>
 
             <p className="mt-2 text-base-regular text-light-2">{content}</p>
 
+            
             <div className={`${isComment ? "mb-4" : "mt-5"} flex flex-col gap-3`}>
               <div className="flex gap-3.5">
                 <Image
@@ -119,16 +119,20 @@ const ThreadCard = ({
                 />
               </div>
 
-              {isComment && comments && comments.length > 0 && (
+              {/* Show replies count for all threads */}
+              {comments && comments.length > 0 && (
                 <Link href={`/thread/${id}`}>
                   <p className="mt-1 text-subtle-medium text-gray-1">
                     {comments.length} {comments.length === 1 ? 'reply' : 'replies'}
                   </p>
                 </Link>
               )}
+
+              <p className="text-sm text-gray-400 ">{formattedDate}</p>
             </div>
           </div>
         </div>
+        
       </div>
     </article>
   );

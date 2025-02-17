@@ -15,11 +15,12 @@ export const connectToDB = async () => {
 
   try {
     const opts: mongoose.ConnectOptions = {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
+      maxPoolSize: 5,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
       connectTimeoutMS: 10000,
-      retryWrites: true
+      retryWrites: true,
+      bufferCommands: false
     };
 
     await mongoose.connect(process.env.MONGODB_URL, opts);

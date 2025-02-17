@@ -94,46 +94,48 @@ export async function fetchUser(userId: string) {
 
 export async function fetchUserPosts(userId: string) {
   try {
-    connectToDB();
+    await connectToDB();
 
     // Find user and include their basic info along with threads
     const user = await User.findOne({ id: userId })
       .select('name username image threads')
       .lean()
-      .populate({
-        path: 'threads',
-        model: Thread,
-        populate: [
-          {
-            path: 'children',
-            model: Thread,
-            populate: {
-              path: 'author',
-              model: User,
-              select: 'name image id'
-            }
-          },
-          {
-            path: 'author',
-            model: User,
-            select: 'name image id'
-          }
-        ]
-      })
-      .maxTimeMS(10000);
+      .maxTimeMS(5000);
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Ensure the threads array exists
-    const userPosts = {
-      ...user,
-      threads: user.threads || []
-    };
+    // Fetch threads separately with limited fields
+    const threads = await Thread.find({ _id: { $in: user.threads } })
+      .select('text createdAt author children')
+      .limit(10) // Limit to recent 10 threads
+      .populate({
+        path: 'author',
+        model: User,
+        select: 'name image id'
+      })
+      .populate({
+        path: 'children',
+        model: Thread,
+        select: 'author',
+        perDocumentLimit: 3,
+        populate: {
+          path: 'author',
+          model: User,
+          select: 'name image id'
+        }
+      })
+      .sort({ createdAt: -1 })
+      .lean()
+      .maxTimeMS(5000);
 
-    return userPosts;
+    return {
+      ...user,
+      threads: threads || []
+    };
   } catch (error: any) {
+    console.error("Error fetching user posts:", error);
     throw new Error(`Failed to fetch user posts: ${error.message}`);
   }
 }
